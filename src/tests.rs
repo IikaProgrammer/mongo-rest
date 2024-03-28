@@ -128,8 +128,8 @@ mod tests {
                 process_team,
                 Some("test".to_string()),
             )
-            .layer(Extension(mongo_client.database("main")));
-        let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+            .with_state(mongo_client.database("main"));
+        let addr = SocketAddr::from(([127, 0, 0, 1], 8081));
         let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
         axum::serve(listener, app).await.unwrap();
     }

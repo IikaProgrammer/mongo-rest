@@ -1,4 +1,4 @@
-use axum::extract::{Path, Query};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::routing::{get, post};
@@ -95,7 +95,7 @@ pub trait RouterExtension {
     ) -> Self;
 }
 
-impl RouterExtension for Router {
+impl RouterExtension for Router<mongodb::Database> {
     fn add_find_route(
         self,
         path: &str,
@@ -199,7 +199,7 @@ impl RouterExtension for Router {
         self.route(
             path,
             post(
-                move |database: Extension<Database>, body: Json<JsonMap>| async move {
+                move |database: State<Database>, body: Json<JsonMap>| async move {
                     if validator(&body.0) {
                         if let Some(policies) = duplicate_field_policies {
                             let col = database.collection::<Document>(&str);
@@ -248,23 +248,21 @@ impl RouterExtension for Router {
         let collection_name = collection.to_string();
         self.route(
             path,
-            get(
-                move |db: Extension<Database>, body: Json<JsonMap>| async move {
-                    //if !is_valid_json_for::<T>(&body.0) {
-                    //  return (StatusCode::BAD_REQUEST, Json("Invalid body".to_owned()));
-                    //}
-                    let col = db.collection::<Document>(&collection_name);
-                    let mut query = bson::to_document(&body.0).unwrap();
-                    if let Some(field) = rm_query_field {
-                        query.remove(field);
-                    }
-                    let result = col.find_one(query, None).await.unwrap();
+            get(move |db: State<Database>, body: Json<JsonMap>| async move {
+                //if !is_valid_json_for::<T>(&body.0) {
+                //  return (StatusCode::BAD_REQUEST, Json("Invalid body".to_owned()));
+                //}
+                let col = db.collection::<Document>(&collection_name);
+                let mut query = bson::to_document(&body.0).unwrap();
+                if let Some(field) = rm_query_field {
+                    query.remove(field);
+                }
+                let result = col.find_one(query, None).await.unwrap();
 
-                    //let body = serde_json::from_value::<T>(serde_json::to_value(&body.0).unwrap())
-                    //  .unwrap();
-                    next(result, body.0)
-                },
-            ),
+                //let body = serde_json::from_value::<T>(serde_json::to_value(&body.0).unwrap())
+                //  .unwrap();
+                next(result, body.0)
+            }),
         )
     }
 
@@ -336,7 +334,7 @@ pub fn is_valid_json_for<T: DeserializeOwned>(json: &JsonMap) -> bool {
 }
 
 async fn mongodb_find(
-    Extension(db): Extension<mongodb::Database>,
+    State(db): State<mongodb::Database>,
     collection_name: String,
     query: Document,
     let_vars: Option<Document>,
@@ -361,7 +359,7 @@ async fn mongodb_find(
 }
 
 async fn mongodb_aggregate(
-    Extension(db): Extension<mongodb::Database>,
+    State(db): State<mongodb::Database>,
     collection_name: String,
     pipeline: Vec<Document>,
     let_vars: Option<Document>,
@@ -381,7 +379,7 @@ async fn mongodb_aggregate(
 }
 
 async fn mongodb_create_new_from_body(
-    Extension(db): Extension<mongodb::Database>,
+    State(db): State<mongodb::Database>,
     json: JsonMap,
     collection_name: String,
 ) -> (StatusCode, axum::response::Json<String>) {
@@ -400,7 +398,7 @@ async fn mongodb_create_new_from_body(
 }
 
 async fn mongodb_find_and_update(
-    Extension(db): Extension<mongodb::Database>,
+    State(db): State<mongodb::Database>,
     coll_name: String,
     find_query: Document,
     field_name: String,
