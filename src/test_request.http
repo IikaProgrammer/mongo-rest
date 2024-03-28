@@ -1,0 +1,11 @@
+POST localhost:8080/teams/create_new
+Content-Type: application/json
+
+{
+    "name": "Team 1",
+    "goals": 0,
+    "wins": 0,
+    "loses": 0
+}
+
+
